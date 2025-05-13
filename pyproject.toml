@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+backend-path = ["."]
+
+[project]
+name = "timerollstat"
+version = "0.1.0"
+authors = [
+  { name="Vlad Hanov", email="timerollstat@finansist.com" },
+]
+description = "High-performance online rolling statistics (median, quantile, min/max) with Numba."
+readme = "README.md"
+requires-python = ">=3.10" # Specify your minimum Python version
+license = { file="LICENSE" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "numpy>=1.20", # Numba usually needs a recent NumPy
+    "numba>=0.55", # Specify a reasonable Numba version
+]
+
+[project.urls]
+Homepage = "https://github.com//buhbuhtig"
+Issues = "https://github.com/buhbuhtig/timerollstat/issues"
