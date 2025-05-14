@@ -1,4 +1,4 @@
-# timerollstat
+# TimeRollStat
 
 **High-performance online rolling statistics (median, quantile) over time-based windows, powered by Numba.**
 
