@@ -20,7 +20,7 @@ Here's how `timerollstat` processes data sequentially for a time-based rolling m
 
 ```python
 import numpy as np
-from timerollstat import init_rolling, get_median_t # Assuming get_median_t handles time
+from timerollstat import init_rolling, get_median_t
 
 # 1. Sample data and timestamps
 values = np.array([10.0, 12.5, 11.0, 15.0, 13.5, 16.0])
@@ -41,17 +41,12 @@ rol = init_rolling(window_size=100, # Max buffer (count)
                    quantile=0.5) # For median
 
 # 3. Process data points iteratively
-print("Input Value | Timestamp (ns)      | Rolling Median (30s window)")
-print("------------|----------------------|-----------------------------")
 for i in range(len(values)):
     current_value = values[i]
     current_timestamp_ns = timestamps_ns[i]
     median = get_median_t(rol, current_value, current_timestamp_ns)
     print(f"{current_value:<11.1f} | {current_timestamp_ns:<20} | {median:.2f}")
 
-# Expected output (illustrative):
-# Input Value | Timestamp (ns)      | Rolling Median (30s window)
-# ------------|----------------------|-----------------------------
 # 10.0        | 1672567200000000000  | 10.00
 # 12.5        | 1672567205000000000  | 11.25
 # 11.0        | 1672567215000000000  | 11.00
