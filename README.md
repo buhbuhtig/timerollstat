@@ -2,9 +2,9 @@
 
 **High-performance online rolling statistics (median, quantile) over time-based windows, powered by Numba.**
 
-`timerollstat` provides a fast and efficient way to calculate rolling medians and quantiles on streaming data. It excels with **unevenly spaced time intervals**, where the rolling window is defined by a time duration (e.g., "last 5 minutes"), not just a fixed number of preceding samples. Data is processed **sequentially in a for-loop (online)**, and thanks to Numba's JIT compilation, it achieves significant speedups, often outperforming batch processing libraries like Pandas for this online processing pattern.
+`timerollstat` provides a fast and efficient way to calculate rolling medians and quantiles on streaming data.
 
-This library is ideal for applications requiring real-time statistical analysis of time-series data, such as financial data streams, sensor readings, or any scenario where new data points arrive sequentially and you need to maintain up-to-date rolling statistics over a look-back time period.
+This library is ideal for applications requiring real-time statistical analysis of time-series data, such as financial data streams or sensor readings, particularly where new data points arrive sequentially **with uneven time intervals**. It allows you to maintain up-to-date rolling statistics over a look-back time period.
 
 ## Key Features
 
@@ -57,7 +57,7 @@ for i in range(len(values)):
 
 ## Performance
 
-`timerollstat` is designed for speed. Its Numba-compiled core processes data **sequentially (simulating a for-loop/online arrival)** and often surpasses the performance of Pandas' **batch** `rolling().quantile()` operations.
+`timerollstat` is designed for speed. Its Numba-compiled core processes data **sequentially** and often surpasses the performance of Pandas' **batch** `rolling().quantile()` operations.
 
 **Benchmark Environment:**
 *   Array size for all tests: 1,500,000
@@ -89,14 +89,14 @@ Fixed count window: 5,000.
 Max count window: 1,500,000.
 | Method                                  | Window / Details            |   Time (s) |   Speedup (vs Pandas Batch) |
 |:----------------------------------------|:----------------------------|-----------:|----------------------------:|
-| `timerollstat_median_t` (for-loop online) | q=0.5 (impl.), W_time=5min  |     1.7516 |                       1.09x |
-| `Pandas` (batch)                        | q=0.5 (impl.), W_time=5min  |     1.9097 |                             |
-| `timerollstat_median_t` (for-loop online) | q=0.5 (impl.), W_time=30min |     1.8707 |                       1.18x |
-| `Pandas` (batch)                        | q=0.5 (impl.), W_time=30min |     2.2034 |                             |
-| `timerollstat_median_t` (for-loop online) | q=0.5 (impl.), W_time=1h    |     1.8335 |                       1.30x |
-| `Pandas` (batch)                        | q=0.5 (impl.), W_time=1h    |     2.3809 |                             |
-| `timerollstat_median_t` (for-loop online) | q=0.5 (impl.), W_time=24h   |     1.9593 |                       2.08x |
-| `Pandas` (batch)                        | q=0.5 (impl.), W_time=24h   |     4.0695 |                             |
+| `timerollstat_median_t` (for-loop online) | q=0.5, 5min  |     1.7516 |                       1.09x |
+| `Pandas` (batch)                        | q=0.5, 5min  |     1.9097 |                             |
+| `timerollstat_median_t` (for-loop online) | q=0.5, 30min |     1.8707 |                       1.18x |
+| `Pandas` (batch)                        | q=0.5, 30min |     2.2034 |                             |
+| `timerollstat_median_t` (for-loop online) | q=0.5, 1h    |     1.8335 |                       1.30x |
+| `Pandas` (batch)                        | q=0.5, 1h    |     2.3809 |                             |
+| `timerollstat_median_t` (for-loop online) | q=0.5, 24h   |     1.9593 |                       2.08x |
+| `Pandas` (batch)                        | q=0.5, 24h   |     4.0695 |                             |
 
 ---
 
@@ -104,14 +104,14 @@ Max count window: 1,500,000.
 Max count window: 1,500,000.
 | Method                                    | Window / Details   |   Time (s) |   Speedup (vs Pandas Batch) |
 |:------------------------------------------|:-------------------|-----------:|----------------------------:|
-| `timerollstat_quantile_t` (for-loop online) | W_time=5min        |     1.6915 |                       1.12x |
-| `Pandas` (batch)                          | W_time=5min        |     1.8981 |                             |
-| `timerollstat_quantile_t` (for-loop online) | W_time=30min       |     1.7381 |                       1.26x |
-| `Pandas` (batch)                          | W_time=30min       |     2.1915 |                             |
-| `timerollstat_quantile_t` (for-loop online) | W_time=1h          |     1.7865 |                       1.33x |
-| `Pandas` (batch)                          | W_time=1h          |     2.3822 |                             |
-| `timerollstat_quantile_t` (for-loop online) | W_time=24h         |     1.8440 |                       2.22x |
-| `Pandas` (batch)                          | W_time=24h         |     4.0967 |                             |
+| `timerollstat_quantile_t` (for-loop online) | 5min        |     1.6915 |                       1.12x |
+| `Pandas` (batch)                          | 5min        |     1.8981 |                             |
+| `timerollstat_quantile_t` (for-loop online) | 30min       |     1.7381 |                       1.26x |
+| `Pandas` (batch)                          | 30min       |     2.1915 |                             |
+| `timerollstat_quantile_t` (for-loop online) | 1h          |     1.7865 |                       1.33x |
+| `Pandas` (batch)                          | 1h          |     2.3822 |                             |
+| `timerollstat_quantile_t` (for-loop online) | 24h         |     1.8440 |                       2.22x |
+| `Pandas` (batch)                          | 24h         |     4.0967 |                             |
 
 ---
 
@@ -119,16 +119,14 @@ Max count window: 1,500,000.
 Max count window: 1,500,000.
 | Method                                    | Window / Details   |   Time (s) |   Speedup (vs Pandas Batch) |
 |:------------------------------------------|:-------------------|-----------:|----------------------------:|
-| `timerollstat_quantile_t` (for-loop online) | W_time=5min        |     1.7038 |                       1.16x |
-| `Pandas` (batch)                          | W_time=5min        |     1.9752 |                             |
-| `timerollstat_quantile_t` (for-loop online) | W_time=30min       |     1.7713 |                       1.26x |
-| `Pandas` (batch)                          | W_time=30min       |     2.2297 |                             |
-| `timerollstat_quantile_t` (for-loop online) | W_time=1h          |     1.8324 |                       1.34x |
-| `Pandas` (batch)                          | W_time=1h          |     2.4611 |                             |
-| `timerollstat_quantile_t` (for-loop online) | W_time=24h         |     1.8200 |                       2.27x |
-| `Pandas` (batch)                          | W_time=24h         |     4.1310 |                             |
-
-*(Note: For a comprehensive list of all benchmarks, please refer to [link to your benchmark script or a detailed benchmark page - if you create one later].)*
+| `timerollstat_quantile_t` (for-loop online) | 5min        |     1.7038 |                       1.16x |
+| `Pandas` (batch)                          | 5min        |     1.9752 |                             |
+| `timerollstat_quantile_t` (for-loop online) | 30min       |     1.7713 |                       1.26x |
+| `Pandas` (batch)                          | 30min       |     2.2297 |                             |
+| `timerollstat_quantile_t` (for-loop online) | 1h          |     1.8324 |                       1.34x |
+| `Pandas` (batch)                          | 1h          |     2.4611 |                             |
+| `timerollstat_quantile_t` (for-loop online) | 24h         |     1.8200 |                       2.27x |
+| `Pandas` (batch)                          | 24h         |     4.1310 |                             |
 
 
 ## Considerations & Limitations
@@ -147,6 +145,15 @@ Or, for the development version:
 ```bash
 pip install git+https://github.com/buhbuhtig/timerollstat.git
 ```
+
+## Alternatives
+
+While `timerollstat` is optimized for online, time-based window calculations, other excellent libraries exist for related tasks:
+
+*   **[River](https://riverml.xyz/)**: A comprehensive library for online machine learning in Python. It offers high-performance rolling window statistics based on *count*, but does not natively support time-based duration windows for these specific rolling statistics in the same way `timerollstat` does.
+*   **[Bottleneck](https://bottleneck.readthedocs.io/)**: Provides very fast C-optimized NumPy array functions for moving window calculations (e.g., `move_median`, `move_mean`). It is highly performant for *count-based* rolling windows but does not directly support time-based duration windows.
+
+`timerollstat` aims to fill the niche for high-speed, online, **time-duration based** rolling quantiles and medians.
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request on the [GitHub repository](https://github.com/buhbuhtig/timerollstat).
