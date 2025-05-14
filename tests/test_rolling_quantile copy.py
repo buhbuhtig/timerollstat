@@ -41,35 +41,25 @@ def calculate_expected_rolling_quantile(data: np.ndarray, window: int, quantile_
             expected_quantiles[i] = np.quantile(current_window_data, quantile_val, method='linear')
     return expected_quantiles
 
-# --- Parameterized Test ---
-@pytest.mark.parametrize("window_size", WINDOW_SIZES)
-@pytest.mark.parametrize("quantile_val", QUANTILES_TO_TEST)
-def test_rolling_quantile_fixed_data(window_size: int, quantile_val: float):
-    """
-    Tests get_quantile with predefined data, for various window sizes and quantiles.
-    """
-    # 1. Arrange
-    expected_quantiles_np = calculate_expected_rolling_quantile(INPUT_DATA_NP, window_size, quantile_val)
-    # print(f"\nTesting W={window_size}, Q={quantile_val}") # For debugging
-    # print(f"Expected (first 10): {expected_quantiles_np[:10]}") # For debugging
+window_size =5
+quantile_val = 0.2
+expected_quantiles_np = calculate_expected_rolling_quantile(INPUT_DATA_NP, window_size, quantile_val)
+rol_state = init_rolling(window_size=window_size, q=quantile_val)
+actual_quantiles_list = []
 
-    # Assuming init_rolling can now handle the default for time_window correctly
-    rol_state = init_rolling(window_size=window_size, q=quantile_val)
 
-    actual_quantiles_list = []
+for value in INPUT_DATA_NP:
+    q_result = get_quantile(rol_state, value) # Using get_quantile
+    actual_quantiles_list.append(q_result)
 
-    # 2. Act
-    for value in INPUT_DATA_NP:
-        q_result = get_quantile(rol_state, value) # Using get_quantile
-        actual_quantiles_list.append(q_result)
+actual_quantiles_np = np.array(actual_quantiles_list, dtype=np.float64)
 
-    actual_quantiles_np = np.array(actual_quantiles_list, dtype=np.float64)
-    print(f"Actual (first 10):   {actual_quantiles_np[:10]}")
 
-    # 3. Assert
-    error_message = (
-        f"Calculated rolling quantiles do not match expected values "
-        f"for window_size={window_size} and quantile={quantile_val}."
-    )
-    assert_array_almost_equal(actual_quantiles_np, expected_quantiles_np, decimal=5,
-                              err_msg=error_message)
+ic = np.isclose(expected_quantiles_np, actual_quantiles_np, rtol=1e-5, atol=1e-8, equal_nan=True)
+print(INPUT_DATA_NP)
+
+print(expected_quantiles_np)
+print(actual_quantiles_np)
+print(all(ic))
+assert_array_almost_equal(actual_quantiles_np, expected_quantiles_np, decimal=5,
+                              err_msg='ddddddddd')
