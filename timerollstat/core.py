@@ -238,6 +238,113 @@ def _rebalance_single_step_for_median(
             _remove_element_from_min_heap(np.int64(1), min_heap_values, min_heap_idxs, cyclic_window_tracker)
             _add_element_to_max_heap(value_to_move, tracker_idx_of_value_to_move, max_heap_values, max_heap_idxs, cyclic_window_tracker)
 
+@njit(NB_VOID(NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY,NB_INT64_ARRAY), fastmath=True, boundscheck=False, cache = True)
+def _rebalance_single_step_for_quantile(
+    max_heap_values: PY_FLOAT_ARRAY,
+    max_heap_idxs: PY_INT_ARRAY,
+    min_heap_values: PY_FLOAT_ARRAY,
+    min_heap_idxs: PY_INT_ARRAY,
+    cyclic_window_tracker: PY_INT_ARRAY,
+    _state: PY_INT_ARRAY) -> None:
+    
+    N = _state[IDX_STATE_FILL_SIZE]
+    tgt_quantile = _state[IDX_STATE_TGT_QUANTILE_SCALED] / 10000.0
+    if N == 1:
+        target_size_max_heap = np.int64(1)
+    else:
+        k_rank_0_based = tgt_quantile * (N - 1.0)
+        target_size_max_heap = np.int64(math.floor(k_rank_0_based) + 1)
+
+    if target_size_max_heap < 0:
+        target_size_max_heap = 0
+    if target_size_max_heap > N:
+        target_size_max_heap = N
+    current_max_heap_size = max_heap_idxs[0]
+    current_min_heap_size = min_heap_idxs[0]
+
+    if current_max_heap_size > target_size_max_heap:
+        if current_max_heap_size > 0:
+            value_to_move = max_heap_values[1]
+            tracker_idx_of_value_to_move = max_heap_idxs[1]
+            _remove_element_from_max_heap(np.int64(1), max_heap_values, max_heap_idxs, cyclic_window_tracker)
+            _add_element_to_min_heap(value_to_move, tracker_idx_of_value_to_move, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+    elif current_max_heap_size < target_size_max_heap:
+        if current_min_heap_size > 0:
+            value_to_move = min_heap_values[1]
+            tracker_idx_of_value_to_move = min_heap_idxs[1]
+            _remove_element_from_min_heap(np.int64(1), min_heap_values, min_heap_idxs, cyclic_window_tracker)
+            _add_element_to_max_heap(value_to_move, tracker_idx_of_value_to_move, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+
+@njit(NB_VOID(NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY), fastmath=True, boundscheck=False, cache = True)
+def _rebalance_multi_step_for_median( # Renamed for brevity
+    max_heap_values: PY_FLOAT_ARRAY,
+    max_heap_idxs: PY_INT_ARRAY,
+    min_heap_values: PY_FLOAT_ARRAY,
+    min_heap_idxs: PY_INT_ARRAY,
+    cyclic_window_tracker: PY_INT_ARRAY) -> None:
+
+    # Loop to balance heap sizes
+    while not (max_heap_idxs[0] == min_heap_idxs[0] or max_heap_idxs[0] == min_heap_idxs[0] + 1):
+        if max_heap_idxs[0] > min_heap_idxs[0] + 1: # Max-heap is too large
+            # Move an element from max-heap to min-heap
+            value_to_move = max_heap_values[1]
+            tracker_idx_of_value_to_move = max_heap_idxs[1]
+            _remove_element_from_max_heap(np.int64(1), max_heap_values, max_heap_idxs, cyclic_window_tracker)
+            _add_element_to_min_heap(value_to_move, tracker_idx_of_value_to_move, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        elif min_heap_idxs[0] > max_heap_idxs[0]: # Min-heap is too large
+            # Move an element from min-heap to max-heap
+            value_to_move = min_heap_values[1]
+            tracker_idx_of_value_to_move = min_heap_idxs[1]
+            _remove_element_from_min_heap(np.int64(1), min_heap_values, min_heap_idxs, cyclic_window_tracker)
+            _add_element_to_max_heap(value_to_move, tracker_idx_of_value_to_move, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+        # else: # Sizes are already balanced according to the while loop's condition
+            # break # This break is not needed as the while condition will terminate the loop.
+            # If we reach here, the while condition should be false, and the loop will end.
+            # If the while condition is still true, but neither if/elif triggered,
+            # it implies a logical error in the while or if/elif conditions.
+            # However, for median calculation, these conditions cover all imbalance cases.
+
+@njit(NB_VOID(NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY),
+      fastmath=True, boundscheck=False, cache=True)
+def _rebalance_multi_step_for_quantile(
+    max_heap_values: PY_FLOAT_ARRAY,
+    max_heap_idxs: PY_INT_ARRAY,
+    min_heap_values: PY_FLOAT_ARRAY,
+    min_heap_idxs: PY_INT_ARRAY,
+    cyclic_window_tracker: PY_INT_ARRAY,
+    _state: PY_INT_ARRAY) -> None:
+
+    N = _state[IDX_STATE_FILL_SIZE]
+    tgt_quantile = _state[IDX_STATE_TGT_QUANTILE_SCALED] / 10000.0
+
+    if N == 1:
+        target_size_max_heap = np.int64(1)
+    else:
+        k_rank_0_based = tgt_quantile * (N - 1.0)
+        target_size_max_heap = np.int64(math.floor(k_rank_0_based) + 1)
+
+    if target_size_max_heap < 0:
+        target_size_max_heap = 0
+    if target_size_max_heap > N:
+        target_size_max_heap = N
+
+    # Loop to balance heap sizes toward target
+    while max_heap_idxs[0] != target_size_max_heap:
+        if max_heap_idxs[0] > target_size_max_heap:
+            if max_heap_idxs[0] > 0:
+                value_to_move = max_heap_values[1]
+                tracker_idx_of_value_to_move = max_heap_idxs[1]
+                _remove_element_from_max_heap(np.int64(1), max_heap_values, max_heap_idxs, cyclic_window_tracker)
+                _add_element_to_min_heap(value_to_move, tracker_idx_of_value_to_move, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        elif max_heap_idxs[0] < target_size_max_heap:
+            if min_heap_idxs[0] > 0:
+                value_to_move = min_heap_values[1]
+                tracker_idx_of_value_to_move = min_heap_idxs[1]
+                _remove_element_from_min_heap(np.int64(1), min_heap_values, min_heap_idxs, cyclic_window_tracker)
+                _add_element_to_max_heap(value_to_move, tracker_idx_of_value_to_move, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+
+
+
 @njit(NB_FLOAT64(NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_FLOAT64_ARRAY, NB_INT64_ARRAY), fastmath=True, boundscheck=False, cache = True)
 def _get_median_from_balanced_heaps(
     max_heap_values: PY_FLOAT_ARRAY,
@@ -252,6 +359,7 @@ def _get_median_from_balanced_heaps(
     elif min_h_size > max_h_size: return min_heap_values[1]
     else: return (max_heap_values[1] + min_heap_values[1]) / 2.0
 
+'''
 @njit(NB_VOID(NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY), fastmath=True, boundscheck=False, cache = True)
 def _rebalance_single_step_for_quantile(
     max_heap_values: PY_FLOAT_ARRAY,
@@ -309,7 +417,7 @@ def _rebalance_single_step_for_quantile(
         
         _add_element_to_min_heap(val_from_max, idx_tracker_from_max, min_heap_values, min_heap_idxs, cyclic_window_tracker)
     
-
+'''
 
 @njit(NB_FLOAT64(NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_INT64, NB_FLOAT64), fastmath=True, boundscheck=False, cache = True)
 def _get_quantile_from_balanced_heaps(
@@ -367,7 +475,7 @@ def _get_quantile_from_balanced_heaps(
     return quantile_value
 
 @njit(NB_VOID(NB_FLOAT64, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY), fastmath=True, boundscheck=False, cache = True)
-def _perform_update_tracker_and_add(
+def _perform_update_tracker_and_add_for_median(
     new_value: PY_FLOAT, # Numba signature NB_FLOAT64
     max_heap_values: PY_FLOAT_ARRAY,
     max_heap_idxs: PY_INT_ARRAY, # Numba signature NB_INT64_ARRAY
@@ -390,14 +498,59 @@ def _perform_update_tracker_and_add(
     _new_element_tracker_slot = _state[IDX_STATE_TAIL]
     _current_max_heap_size = max_heap_idxs[0]
     if _current_max_heap_size == 0 or (_current_max_heap_size > 0 and new_value <= max_heap_values[1]):
-         _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+        if min_heap_idxs[0] > 0 and new_value > min_heap_values[1]: # to keep invariant rule
+            _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        else:#base scenario (no invariant violation, so add to the heap that supports a balanced state)
+            _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
     else:
-         _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        if max_heap_idxs[0] > 0 and new_value < max_heap_values[1]:# to keep invariant rule
+            _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+        else: #base scenario (no invariant violation, so add to the heap that supports a balanced state)
+            _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+    
     _state[IDX_STATE_TAIL] = (_state[IDX_STATE_TAIL] + 1) % k_window_size
 
-# =============================================================================
-# NEW and MODIFIED functions for procedural approach with time window
-# =============================================================================
+@njit(NB_VOID(NB_FLOAT64, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_FLOAT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY, NB_INT64_ARRAY), fastmath=True, boundscheck=False, cache = True)
+def _perform_update_tracker_and_add_for_quantile(
+    new_value: PY_FLOAT, # Numba signature NB_FLOAT64
+    max_heap_values: PY_FLOAT_ARRAY,
+    max_heap_idxs: PY_INT_ARRAY, # Numba signature NB_INT64_ARRAY
+    min_heap_values: PY_FLOAT_ARRAY,
+    min_heap_idxs: PY_INT_ARRAY, # Numba signature NB_INT64_ARRAY
+    cyclic_window_tracker: PY_INT_ARRAY, # Numba signature NB_INT64_ARRAY
+    _state: PY_INT_ARRAY # Numba signature NB_INT64_ARRAY
+) -> None:
+    k_window_size = _state[IDX_STATE_K_WINDOW_SIZE]
+    if _state[IDX_STATE_FILL_SIZE] == k_window_size:
+        _oldest_element_tracker_slot = _state[IDX_STATE_HEAD]
+        _signed_heap_idx_to_remove: int64 = cyclic_window_tracker[_oldest_element_tracker_slot] # type: ignore
+        if _signed_heap_idx_to_remove > 0:
+            _remove_element_from_max_heap(_signed_heap_idx_to_remove, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+        elif _signed_heap_idx_to_remove < 0:
+            _remove_element_from_min_heap(abs(_signed_heap_idx_to_remove), min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        _state[IDX_STATE_HEAD] = (_state[IDX_STATE_HEAD] + 1) % k_window_size
+    else:
+        _state[IDX_STATE_FILL_SIZE] += 1
+    _new_element_tracker_slot = _state[IDX_STATE_TAIL]
+    _current_max_heap_size = max_heap_idxs[0]
+    N = _state[IDX_STATE_FILL_SIZE]
+    tgt_quantile = _state[IDX_STATE_TGT_QUANTILE_SCALED] / 10000.0
+    k_rank_0_based = tgt_quantile * (N - 1.0)
+    target_size_max_heap = np.int64(math.floor(k_rank_0_based) + 1)
+
+    if _current_max_heap_size < target_size_max_heap:
+        if min_heap_idxs[0] > 0 and new_value > min_heap_values[1]: # to keep invariant rule
+            _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        else:#base scenario (no invariant violation, so add to the heap that supports a balanced state)
+            _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+    else:
+        if max_heap_idxs[0] > 0 and new_value < max_heap_values[1]:# to keep invariant rule
+            _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+        else: #base scenario (no invariant violation, so add to the heap that supports a balanced state)
+            _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+    
+    _state[IDX_STATE_TAIL] = (_state[IDX_STATE_TAIL] + 1) % k_window_size
+
 
 @njit(NB_VOID(STATE_BUNDLE_TYPE, NB_INT64), fastmath=True, boundscheck=False, cache=True)
 def _remove_expired_by_time_and_size(state_tuple: PyStateBundleType, new_time: PY_INT) -> None:
@@ -427,41 +580,82 @@ def _remove_expired_by_time_and_size(state_tuple: PyStateBundleType, new_time: P
         _state_arr[IDX_STATE_FILL_SIZE] -= 1
 
 @njit(NB_VOID(STATE_BUNDLE_TYPE, NB_FLOAT64, NB_INT64), fastmath=True, boundscheck=False, cache=True)
-def _add_new_element_with_time(state_tuple: PyStateBundleType, new_value: PY_FLOAT, new_time: PY_INT) -> None:
+def _add_new_element_with_time_median(state_tuple: PyStateBundleType, new_value: PY_FLOAT, new_time: PY_INT) -> None:
     max_heap_values, max_heap_idxs, \
     min_heap_values, min_heap_idxs, \
     cyclic_window_tracker, cyclic_window_timestamps, _state_arr = state_tuple
     k_window_size = _state_arr[IDX_STATE_K_WINDOW_SIZE]
     _new_element_tracker_slot = _state_arr[IDX_STATE_TAIL]
+
+
     _current_max_heap_size = max_heap_idxs[0]
     if _current_max_heap_size == 0 or (_current_max_heap_size > 0 and new_value <= max_heap_values[1]):
-         _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+        if min_heap_idxs[0] > 0 and new_value > min_heap_values[1]: # to keep invariant rule
+            _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        else:#base scenario (no invariant violation, so add to the heap that supports a balanced state)
+            _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
     else:
-         _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        if max_heap_idxs[0] > 0 and new_value < max_heap_values[1]:# to keep invariant rule
+            _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+        else: #base scenario (no invariant violation, so add to the heap that supports a balanced state)
+            _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+
+    cyclic_window_timestamps[_new_element_tracker_slot] = new_time
+    _state_arr[IDX_STATE_TAIL] = (_state_arr[IDX_STATE_TAIL] + 1) % k_window_size
+    if _state_arr[IDX_STATE_FILL_SIZE] < k_window_size:
+        _state_arr[IDX_STATE_FILL_SIZE] += 1
+
+@njit(NB_VOID(STATE_BUNDLE_TYPE, NB_FLOAT64, NB_INT64), fastmath=True, boundscheck=False, cache=True)
+def _add_new_element_with_time_quantile(state_tuple: PyStateBundleType, new_value: PY_FLOAT, new_time: PY_INT) -> None:
+    max_heap_values, max_heap_idxs, \
+    min_heap_values, min_heap_idxs, \
+    cyclic_window_tracker, cyclic_window_timestamps, _state_arr = state_tuple
+
+    k_window_size = _state_arr[IDX_STATE_K_WINDOW_SIZE]
+    _new_element_tracker_slot = _state_arr[IDX_STATE_TAIL]
+
+    _current_max_heap_size = max_heap_idxs[0]
+    N = _state_arr[IDX_STATE_FILL_SIZE] + 1  # we're adding a new element
+    tgt_quantile = _state_arr[IDX_STATE_TGT_QUANTILE_SCALED] / 10000.0
+    k_rank_0_based = tgt_quantile * (N - 1.0)
+    target_size_max_heap = np.int64(math.floor(k_rank_0_based) + 1)
+
+    if _current_max_heap_size < target_size_max_heap:
+        if min_heap_idxs[0] > 0 and new_value > min_heap_values[1]:
+            _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+        else:
+            _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+    else:
+        if max_heap_idxs[0] > 0 and new_value < max_heap_values[1]:
+            _add_element_to_max_heap(new_value, _new_element_tracker_slot, max_heap_values, max_heap_idxs, cyclic_window_tracker)
+        else:
+            _add_element_to_min_heap(new_value, _new_element_tracker_slot, min_heap_values, min_heap_idxs, cyclic_window_tracker)
+
     cyclic_window_timestamps[_new_element_tracker_slot] = new_time
     _state_arr[IDX_STATE_TAIL] = (_state_arr[IDX_STATE_TAIL] + 1) % k_window_size
     if _state_arr[IDX_STATE_FILL_SIZE] < k_window_size:
         _state_arr[IDX_STATE_FILL_SIZE] += 1
 
 
+
 def init_rolling(window_size: int = 1000,
-                 time_window: int = INT64MAX,
+                 window_time: int = INT64MAX,
                  q: float = 0.5
                 ) -> PyStateBundleType:
     ws_nb = np.int64(window_size)
-    tw_nb = np.int64(time_window)
+    wt_nb = np.int64(window_time)
     q_nb = np.float64(q)
-    return _init_rolling_numba(ws_nb, tw_nb, q_nb)
+    return _init_rolling_numba(ws_nb, wt_nb, q_nb)
 
 
 @njit(STATE_BUNDLE_TYPE(NB_INT64, NB_INT64, NB_FLOAT64), cache=True)
 def _init_rolling_numba(window_size: PY_INT,
-                 time_window: PY_INT,
+                 window_time: PY_INT,
                  quantile: PY_FLOAT,
 ) -> PyStateBundleType: # Python аннотация использует PyStateBundleType
     if window_size < 1:
         raise ValueError('Should be: window_size >= 1')
-    if time_window <= 0:
+    if window_time <= 0:
         raise ValueError('Should be: time_window > 0')
     _k = np.int64(window_size)
     _heap_capacity = _k + 1
@@ -480,7 +674,7 @@ def _init_rolling_numba(window_size: PY_INT,
     _state_arr_local[IDX_STATE_HEAD] = 0
     _state_arr_local[IDX_STATE_TAIL] = 0
     _state_arr_local[IDX_STATE_FILL_SIZE] = 0
-    _state_arr_local[IDX_STATE_TIMEWINDOW_WINDOW] = time_window
+    _state_arr_local[IDX_STATE_TIMEWINDOW_WINDOW] = window_time
     return (max_heap_values_local, max_heap_idxs_local,
             min_heap_values_local, min_heap_idxs_local,
             cyclic_window_tracker_local, cyclic_window_timestamps_local,
@@ -494,7 +688,7 @@ def get_median(
     max_heap_values, max_heap_idxs, \
     min_heap_values, min_heap_idxs, \
     cyclic_window_tracker, _, _state_arr = state_tuple
-    _perform_update_tracker_and_add(
+    _perform_update_tracker_and_add_for_median(
         new_value,
         max_heap_values, max_heap_idxs,
         min_heap_values, min_heap_idxs,
@@ -522,10 +716,10 @@ def get_median_t(
     min_heap_values, min_heap_idxs, \
     cyclic_window_tracker, _, _state_arr = state_tuple
     _remove_expired_by_time_and_size(state_tuple, new_time)
-    _add_new_element_with_time(state_tuple, new_value, new_time)
+    _add_new_element_with_time_median(state_tuple, new_value, new_time)
     if _state_arr[IDX_STATE_FILL_SIZE] == 0:
         return np.float64(np.nan)
-    _rebalance_single_step_for_median(
+    _rebalance_multi_step_for_median(
         max_heap_values, max_heap_idxs,
         min_heap_values, min_heap_idxs,
         cyclic_window_tracker
@@ -533,6 +727,32 @@ def get_median_t(
     return _get_median_from_balanced_heaps(
         max_heap_values, max_heap_idxs,
         min_heap_values, min_heap_idxs
+    )
+
+@njit(NB_FLOAT64(STATE_BUNDLE_TYPE, NB_FLOAT64, NB_INT64), fastmath=True, boundscheck=False, cache=True)
+def get_quantile_t(
+    state_tuple: PyStateBundleType,
+    new_value: PY_FLOAT,
+    new_time: PY_INT
+) -> PY_FLOAT:
+    max_heap_values, max_heap_idxs, \
+    min_heap_values, min_heap_idxs, \
+    cyclic_window_tracker, _, _state_arr = state_tuple
+    _remove_expired_by_time_and_size(state_tuple, new_time)
+    _add_new_element_with_time_quantile(state_tuple, new_value, new_time)
+    if _state_arr[IDX_STATE_FILL_SIZE] == 0:
+        return np.float64(np.nan)
+    _rebalance_multi_step_for_quantile(
+        max_heap_values, max_heap_idxs,
+        min_heap_values, min_heap_idxs,
+        cyclic_window_tracker,
+        _state_arr
+    )
+    return _get_quantile_from_balanced_heaps(
+        max_heap_values, max_heap_idxs,
+        min_heap_values, min_heap_idxs,
+        _state_arr[IDX_STATE_FILL_SIZE],
+        _state_arr[IDX_STATE_TGT_QUANTILE_SCALED] / 10000.0
     )
 
 @njit(NB_FLOAT64(STATE_BUNDLE_TYPE, NB_FLOAT64), fastmath=True, boundscheck=False, cache=True)
@@ -543,7 +763,7 @@ def get_quantile(
     max_heap_values, max_heap_idxs, \
     min_heap_values, min_heap_idxs, \
     cyclic_window_tracker, _, _state_arr = state_tuple
-    _perform_update_tracker_and_add(
+    _perform_update_tracker_and_add_for_quantile(
         new_value,
         max_heap_values, max_heap_idxs,
         min_heap_values, min_heap_idxs,
@@ -565,31 +785,64 @@ def get_quantile(
 
 @njit(NB_FLOAT64_ARRAY(NB_FLOAT64_ARRAY, NB_INT64), fastmath=True, boundscheck=False, cache = True)
 def rolling_median(input_array: PY_FLOAT_ARRAY, # Было float64[:]
-                           k_window_size_param: PY_INT) -> PY_FLOAT_ARRAY: # Было float64[:]
+                           window_size: PY_INT) -> PY_FLOAT_ARRAY: # Было float64[:]
     n = len(input_array)
     output_medians = np.empty(n, dtype=np.float64)
-    if k_window_size_param < 1:
+    if window_size < 1:
         raise ValueError('Should be: k_window_size_param >= 1')
     if n == 0:
         return output_medians
-    state_tuple = _init_rolling_numba(k_window_size_param, np.iinfo(np.int64).max, 0.5)
+    state_tuple = _init_rolling_numba(window_size, np.iinfo(np.int64).max, 0.5)
     for i in range(n):
         output_medians[i] = get_median(state_tuple, input_array[i])
     return output_medians
 
-@njit(NB_FLOAT64_ARRAY(NB_FLOAT64_ARRAY, NB_INT64, NB_FLOAT64), fastmath=True, boundscheck=False, cache = True)
-def rolling_quantile(input_array: PY_FLOAT_ARRAY, # Было float64[:]
-                             k_window_size_param: PY_INT, # Было int64
-                             tgt_quantile_param: PY_FLOAT) -> PY_FLOAT_ARRAY: # Было float64[:]
+@njit(NB_FLOAT64_ARRAY(NB_FLOAT64_ARRAY, NB_INT64_ARRAY,NB_INT64,NB_INT64,NB_FLOAT64), fastmath=True, boundscheck=False, cache = True)
+def rolling_quantile_t(input_array: PY_FLOAT_ARRAY,
+                     datatimes: PY_INT_ARRAY,
+                     window_time:PY_INT_ARRAY,
+                    window_size: PY_INT,
+                    quantile: PY_FLOAT) -> PY_FLOAT_ARRAY:
     n = len(input_array)
     output_quantiles = np.empty(n, dtype=np.float64)
-    if k_window_size_param < 1:
+    if window_size < 1:
         raise ValueError('Should be: k_window_size_param >= 1')
     if n == 0:
         return output_quantiles
-    if not (0.0 <= tgt_quantile_param <= 1.0):
+    state_tuple = _init_rolling_numba(window_size, window_time, quantile)
+    for i in range(n):
+        output_quantiles[i] = get_quantile_t(state_tuple, input_array[i], datatimes[i])
+    return output_quantiles
+
+@njit(NB_FLOAT64_ARRAY(NB_FLOAT64_ARRAY, NB_INT64_ARRAY,NB_INT64,NB_INT64), fastmath=True, boundscheck=False, cache = True)
+def rolling_median_t(input_array: PY_FLOAT_ARRAY,
+                     datatimes: PY_INT_ARRAY,
+                     window_time:PY_INT_ARRAY,
+                    window_size: PY_INT) -> PY_FLOAT_ARRAY: # Было float64[:]
+    n = len(input_array)
+    output_medians = np.empty(n, dtype=np.float64)
+    if window_size < 1:
+        raise ValueError('Should be: k_window_size_param >= 1')
+    if n == 0:
+        return output_medians
+    state_tuple = _init_rolling_numba(window_size, window_time, 0.5)
+    for i in range(n):
+        output_medians[i] = get_median_t(state_tuple, input_array[i], datatimes[i])
+    return output_medians
+
+@njit(NB_FLOAT64_ARRAY(NB_FLOAT64_ARRAY, NB_INT64, NB_FLOAT64), fastmath=True, boundscheck=False, cache = True)
+def rolling_quantile(input_array: PY_FLOAT_ARRAY, # Было float64[:]
+                             window_size: PY_INT, # Было int64
+                             quantile: PY_FLOAT) -> PY_FLOAT_ARRAY: # Было float64[:]
+    n = len(input_array)
+    output_quantiles = np.empty(n, dtype=np.float64)
+    if window_size < 1:
+        raise ValueError('Should be: k_window_size_param >= 1')
+    if n == 0:
+        return output_quantiles
+    if not (0.0 <= quantile <= 1.0):
         raise ValueError('tgt_quantile_param must be between 0.0 and 1.0')
-    state_tuple = _init_rolling_numba(k_window_size_param, np.iinfo(np.int64).max, tgt_quantile_param)
+    state_tuple = _init_rolling_numba(window_size, np.iinfo(np.int64).max, quantile)
     # _state_arr_ref = state_tuple[6] # This variable was unused
     for i in range(n):
         output_quantiles[i] = get_quantile(state_tuple, input_array[i])

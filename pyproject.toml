@@ -36,10 +36,10 @@ Issues = "https://github.com/buhbuhtig/timerollstat/issues"
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
-    "pytest-cov",  # для отчетов о покрытии кода тестами
+    "pytest-cov", 
     "flake8",
     "black",
     "isort",
-    "mypy",        # для статической проверки типов, если используете
-    # добавьте сюда другие инструменты, которые используете
+    "mypy",  
+    "pandas"
 ]
