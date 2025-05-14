@@ -290,27 +290,23 @@ def _rebalance_single_step_for_quantile(
     current_max_heap_size_after_size_rebalance = max_heap_idxs[0]
     current_min_heap_size_after_size_rebalance = min_heap_idxs[0]
 
-    # Если обе кучи не пусты и порядок нарушен (max_heap[root] > min_heap[root])
     if current_max_heap_size_after_size_rebalance > 0 and \
        current_min_heap_size_after_size_rebalance > 0 and \
        max_heap_values[1] > min_heap_values[1]:
         
-        # Значение и индекс элемента, который переносится из max_heap в min_heap
         val_from_max = max_heap_values[1]
-        idx_tracker_from_max = max_heap_idxs[1] # Это индекс в cyclic_window_tracker
+        idx_tracker_from_max = max_heap_idxs[1]
 
-        # Значение и индекс элемента, который переносится из min_heap в max_heap
         val_from_min = min_heap_values[1]
-        idx_tracker_from_min = min_heap_idxs[1] # Это индекс в cyclic_window_tracker
+        idx_tracker_from_min = min_heap_idxs[1]
 
-        # Шаг 1: Удаляем корень из max_heap
         _remove_element_from_max_heap(np.int64(1), max_heap_values, max_heap_idxs, cyclic_window_tracker)
-        # Шаг 2: Удаляем корень из min_heap
+
         _remove_element_from_min_heap(np.int64(1), min_heap_values, min_heap_idxs, cyclic_window_tracker)
         
-        # Шаг 3: Добавляем бывший корень min_heap (val_from_min) в max_heap
+        
         _add_element_to_max_heap(val_from_min, idx_tracker_from_min, max_heap_values, max_heap_idxs, cyclic_window_tracker)
-        # Шаг 4: Добавляем бывший корень max_heap (val_from_max) в min_heap
+        
         _add_element_to_min_heap(val_from_max, idx_tracker_from_max, min_heap_values, min_heap_idxs, cyclic_window_tracker)
     
 
