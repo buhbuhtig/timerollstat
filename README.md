@@ -24,35 +24,33 @@ from timerollstat import init_rolling, get_median_t
 
 # 1. Sample data and timestamps
 values = np.array([10.0, 12.5, 11.0, 15.0, 13.5, 16.0])
-# Timestamps as int64 nanoseconds
-timestamps_ns = np.array([
-    np.datetime64('2023-01-01T10:00:00').astype(np.int64),
-    np.datetime64('2023-01-01T10:00:05').astype(np.int64), # +5s
-    np.datetime64('2023-01-01T10:00:15').astype(np.int64), # +10s
-    np.datetime64('2023-01-01T10:00:32').astype(np.int64), # +17s
-    np.datetime64('2023-01-01T10:00:35').astype(np.int64), # +3s
-    np.datetime64('2023-01-01T10:00:40').astype(np.int64)  # +5s
-])
+u='ns' # u = units: Timestamps are int64 'units' (ns/ms/s) from 1970-01-01 00:00:00 
+timestamps = np.array([
+    np.datetime64('2023-01-01T10:00:00',u),
+    np.datetime64('2023-01-01T10:00:05',u), # +5s
+    np.datetime64('2023-01-01T10:00:15',u), # +10s
+    np.datetime64('2023-01-01T10:00:32',u), # +17s
+    np.datetime64('2023-01-01T10:00:40',u), # +3s
+    np.datetime64('2023-01-01T10:00:50',u)  # +5s
+]).astype(np.int64)
 
 # 2. Initialize the rolling state
 # Max buffer count, time window duration (nanoseconds), quantile (0.5 for median)
 rol = init_rolling(window_size=100, # Max buffer (count)
-                   time_window=np.int64(30 * 1e9), # 30 seconds in nanoseconds
-                   quantile=0.5) # For median
-
+                   window_time=np.int64(30 * 1e9), # 30s in nanoseconds as u = 'ns', or = np.timedelta64(30 * 1e9,u) 
+                   q=0.5) 
+# window_time and timestamps should have the same units
 # 3. Process data points iteratively
 for i in range(len(values)):
-    current_value = values[i]
-    current_timestamp_ns = timestamps_ns[i]
-    median = get_median_t(rol, current_value, current_timestamp_ns)
-    print(f"{current_value:<11.1f} | {current_timestamp_ns:<20} | {median:.2f}")
+    median = get_median_t(rol, values[i], timestamps[i])
+    print(f"{values[i]:<11.1f} | {timestamps[i]:<20} | {median:.2f}")
 
 # 10.0        | 1672567200000000000  | 10.00
 # 12.5        | 1672567205000000000  | 11.25
 # 11.0        | 1672567215000000000  | 11.00
-# 15.0        | 1672567232000000000  | 13.25  (10.0 is now out of 30s window)
-# 13.5        | 1672567235000000000  | 13.50  (12.5 is now out of 30s window)
-# 16.0        | 1672567240000000000  | 15.00  (11.0 is now out of 30s window)
+# 15.0        | 1672567232000000000  | 12.25  (10.0 is now out of 30s window)
+# 13.5        | 1672567240000000000  | 13.50  (12.5 is now out of 30s window)
+# 16.0        | 1672567250000000000  | 15.00  (11.0 is now out of 30s window)
 ```
 
 ## Performance
